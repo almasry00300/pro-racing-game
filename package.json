@@ -1,7 +1,12 @@
 {
+  "name": "pro-racing-game",
+  "version": "1.0.0",
+  "description": "Pro Racing 3D Game",
+  "main": "server.js",
   "dependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/cli": "^8.5.0",
-    "@capacitor/core": "^8.5.0"
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/cli": "^5.0.0",
+    "@capacitor/core": "^5.0.0",
+    "ws": "^8.13.0"
   }
 }
