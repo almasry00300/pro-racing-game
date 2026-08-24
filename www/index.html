@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pro Racing 3D - Global Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #03030c; user-select: none; font-family: sans-serif; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top:0; left:0; z-index: 1; }
+        #dashboard { position: absolute; top: 20px; left: 20px; color: #fff; z-index: 10; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .hud-card { background: rgba(0, 0, 0, 0.7); padding: 10px 20px; border-left: 4px solid #00ffff; border-radius: 4px; }
+        .speed-text { font-size: 26px; font-weight: bold; color: #00ffcc; font-family: monospace; }
+        .score-text { font-size: 22px; font-weight: bold; color: #ffcc00; font-family: monospace; }
+        #garage-menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10, 10, 25, 0.95); border: 2px solid #00ffcc; border-radius: 12px; padding: 25px; color: white; z-index: 20; display: none; text-align: center; width: 280px; }
+        .garage-btn { background: #00ffcc; color: #000; border: none; padding: 12px 25px; font-size: 16px; font-weight: bold; border-radius: 6px; margin-top: 15px; width: 100%; }
+        .controls-container { position: absolute; bottom: 30px; width: 100vw; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; z-index: 10; pointer-events: none; }
+        .btn-group { display: flex; gap: 20px; pointer-events: auto; }
+        .control-btn { width: 75px; height: 75px; background: rgba(15, 15, 25, 0.4); border: 2px solid rgba(0, 255, 255, 0.4); border-radius: 50%; color: #00ffcc; font-size: 24px; display: flex; align-items: center; justify-content: center; -webkit-user-select: none; touch-action: none; }
+        #btn-up { border-color: rgba(0, 255, 100, 0.5); color: #00ff66; }
+        #btn-down { border-color: rgba(255, 50, 50, 0.5); color: #ff3333; }
+    </style>
+    <script src="three.min.js"></script>
+</head>
+<body>
+    <div id="dashboard">
+        <div class="hud-card">
+            <div>السرعة الحالية</div>
+            <div class="speed-text"><span id="speed-val">0</span> KM/H</div>
+        </div>
+        <div class="hud-card" style="border-left-color: #ffcc00;">
+            <div>العملات الذهبية</div>
+            <div class="score-text">💰 <span id="coins-val">0</span></div>
+        </div>
+    </div>
+    <div id="garage-menu">
+        <h3>🏪 متجر السيارات العالمية</h3>
+        <p id="car-status">🏎️ سيارة البرق المقفلة (السرعة دبل)<br><b style="color: #ffcc00;">المطلوب: 5 عملات</b></p>
+        <button class="garage-btn" id="buy-btn">شراء وفتح السيارة</button>
+    </div>
+    <div id="canvas-container"></div>
+    <div class="controls-container">
+        <div class="btn-group">
+            <div class="control-btn" id="btn-left">◀</div>
+            <div class="control-btn" id="btn-right">▶</div>
+        </div>
+        <div class="btn-group">
+            <div class="control-btn" id="btn-down">⬇</div>
+            <div class="control-btn" id="btn-up">▲</div>
+        </div>
+    </div>
+    <script>
+        const scene = new THREE.Scene(); scene.background = new THREE.Color(0x020208); scene.fog = new THREE.FogExp2(0x020208, 0.012);
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, precision: "mediump" });
+        renderer.setSize(window.innerWidth, window.innerHeight); document.getElementById('canvas-container').appendChild(renderer.domElement);
+        const trackContainer = new THREE.Group();
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(35, 3000), new THREE.MeshBasicMaterial({ color: 0x111116 })); road.rotation.x = -Math.PI / 2; trackContainer.add(road);
+        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 3000), new THREE.MeshBasicMaterial({ color: 0xff0055 })); leftWall.position.set(-17.5, 0.75, 0); trackContainer.add(leftWall);
+        const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 3000), new THREE.MeshBasicMaterial({ color: 0x00ffcc })); rightWall.position.set(17.5, 0.75, 0); trackContainer.add(rightWall);
+        scene.add(trackContainer);
+        let coinsCollected = parseInt(localStorage.getItem('racing_coins')) || 0; let hasSuperCar = localStorage.getItem('has_super_car') === 'true';
+        document.getElementById('coins-val').innerText = coinsCollected;
+        const coinsArray = []; const coinGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.1, 16); const coinMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
+        for (let i = -200; i > -2000; i -= 150) {
+            const coin = new THREE.Mesh(coinGeo, coinMat); coin.rotation.x = Math.PI / 2; coin.position.set((Math.random() - 0.5) * 20, 0.5, i);
+            scene.add(coin); coinsArray.push(coin);
+        }
+        const car = new THREE.Group(); const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.4, 4.2), new THREE.MeshBasicMaterial({ color: hasSuperCar ? 0xffff00 : 0x00ffcc })); body.position.y = 0.3; car.add(body);
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 1.8), new THREE.MeshBasicMaterial({ color: 0x0a0a10 })); glass.position.set(0, 0.65, -0.2); car.add(glass); scene.add(car);
+        camera.position.set(0, 4, 8.5);
+        let speed = 0; let maxSpeed = hasSuperCar ? 5.0 : 2.5; let accel = 0.05; let friction = 0.02; let turnSpeed = 0.045;
+        const keys = { up: false, down: false, left: false, right: false };
+        function bindTouch(id, keyProp) {
+            const el = document.getElementById(id);
+            el.addEventListener('touchstart', (e) => { keys[keyProp] = true; }, {passive: true});
+            el.addEventListener('touchend', () => { keys[keyProp] = false; }, {passive: true});
+        }
+        bindTouch('btn-up', 'up'); bindTouch('btn-down', 'down'); bindTouch('btn-left', 'left'); bindTouch('btn-right', 'right');
+        const garageMenu = document.getElementById('garage-menu');
+        if (hasSuperCar) { document.getElementById('car-status').innerHTML = "⚡ تم فتح السيارة الخارقة!"; document.getElementById('buy-btn').style.display = 'none'; }
+        document.getElementById('buy-btn').addEventListener('click', () => {
+            if (coinsCollected >= 5) { coinsCollected -= 5; localStorage.setItem('racing_coins', coinsCollected); localStorage.setItem('has_super_car', 'true'); location.reload(); }
+        });
+        function animate() {
+            requestAnimationFrame(animate);
+            if (keys.up) { speed = Math.min(speed + accel, maxSpeed); } else if (keys.down) { speed = Math.max(speed - accel, -maxSpeed/2); } else { if (speed > 0) speed = Math.max(speed - friction, 0); if (speed < 0) speed = Math.min(speed + friction, 0); }
+            if (Math.abs(speed) > 0.02) { const r = turnSpeed * (speed / maxSpeed); if (keys.left) car.rotation.y += r; if (keys.right) car.rotation.y -= r; }
+            car.translateZ(-speed); if (car.position.x < -16.2) { car.position.x = -16.2; speed *= 0.4; } if (car.position.x > 16.2) { car.position.x = 16.2; speed *= 0.4; }
+            coinsArray.forEach((coin) => { if (coin.visible) { coin.rotation.z += 0.02; if (car.position.distanceTo(coin.position) < 2.5) { coin.visible = false; coinsCollected += 1; localStorage.setItem('racing_coins', coinsCollected); document.getElementById('coins-val').innerText = coinsCollected; if (coinsCollected === 5 && !hasSuperCar) { garageMenu.style.display = 'block'; speed = 0; } } } });
+            const cameraOffset = new THREE.Vector3(0, 4, 8.5).applyMatrix4(car.matrixWorld); camera.position.copy(cameraOffset); camera.lookAt(car.position.x, car.position.y + 0.6, car.position.z);
+            document.getElementById('speed-val').innerText = Math.round(Math.abs(speed) * 120); renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>

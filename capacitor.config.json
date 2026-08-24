@@ -1,0 +1,6 @@
+{
+  "appId": "com.proracing.game",
+  "appName": "Pro Racing 3D",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
